@@ -9,10 +9,15 @@ import base64
 from fpdf import FPDF
 from datetime import datetime
 import tempfile
+import json
 
 # Configuración de la página
 st.set_page_config(page_title="Clasificador de Camisetas", page_icon="👕", layout="wide")
 
+# Cargar los resultados de evaluación
+with open('metricas_modelos.json') as f:
+    metricas_modelos = json.load(f)
+    
 # Inicialización de session_state
 if 'prediccion' not in st.session_state:
     st.session_state.prediccion = None
@@ -24,9 +29,19 @@ if 'archivo_subido' not in st.session_state:
 # ======================
 # CONFIGURACIÓN INICIAL
 # ======================
-MODEL_PATH = 'model/alexnet_final.keras'  # Cambiar la ruta al modelo AlexNet
+MODEL_PATH = 'model/mobilenet_final.keras'  # Cambiar la ruta al modelo AlexNet
 ATTRIBUTES = ['gender', 'usage']
-IMG_SIZE = (227, 227)  # Cambiar de (224, 224) a (227, 227) para AlexNet
+IMG_SIZE = (224, 224)  # Cambiado de (227, 227) a (224, 224) para MobileNet
+
+# Traducciones para la interfaz
+TRADUCCION_ATRIBUTOS = {'gender': 'Género', 'usage': 'Uso'}
+TRADUCCION_VALORES = {
+    'Men': 'Hombre', 'Women': 'Mujer', 
+    'Casual': 'Casual', 'Sports': 'Deportivo',
+    'Hombre': 'Hombre', 'Mujer': 'Mujer',
+    'Deportivo': 'Deportivo'
+}
+
 # ======================
 # FUNCIONES AUXILIARES
 # ======================
@@ -80,7 +95,13 @@ def generar_enlace_descarga_pdf(ruta_archivo, texto_boton):
     href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="reporte_camiseta.pdf">{texto_boton}</a>'
     return href
 
-def generar_reporte_prediccion(prediccion, img, nombre_modelo="ResNet-50"):
+def obtener_metricas_modelo(modelo, atributo):
+    """Obtiene las métricas de un modelo específico para un atributo dado"""
+    if modelo in metricas_modelos['models'] and atributo in metricas_modelos['models'][modelo]:
+        return metricas_modelos['models'][modelo][atributo]
+    return None
+
+def generar_reporte_prediccion(prediccion, img, nombre_modelo="AlexNet"):
     """Genera un PDF con el reporte de predicción y evaluación de modelos"""
     # Crear PDF
     pdf = FPDF()
@@ -107,11 +128,7 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="ResNet-50"):
     pdf.cell(0, 10, "Imagen analizada:", 0, 1)
     pdf.image(temp_img.name, x=10, w=180)
     pdf.ln(15)
-    
-    # Traducciones
-    traduccion_atributos = {'gender': 'Género', 'usage': 'Uso'}
-    traduccion_valores = {'Men': 'Hombre', 'Women': 'Mujer', 'Casual': 'Casual', 'Sports': 'Deportivo'}
-    
+
     # Resultados principales
     pdf.set_font("Helvetica", 'B', 14)
     pdf.cell(0, 10, "Resultados principales:", 0, 1)
@@ -125,8 +142,8 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="ResNet-50"):
     
     pdf.set_font("Helvetica", '', 12)
     for attr, data in prediccion.items():
-        atributo = traduccion_atributos.get(attr, attr)
-        valor = traduccion_valores.get(data['label'], data['label'])
+        atributo = TRADUCCION_ATRIBUTOS.get(attr, attr)
+        valor = TRADUCCION_VALORES.get(data['label'], data['label'])
         
         pdf.cell(70, 10, atributo, 1)
         pdf.cell(70, 10, valor, 1)
@@ -140,14 +157,14 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="ResNet-50"):
     pdf.ln(5)
     
     for attr, data in prediccion.items():
-        atributo = traduccion_atributos.get(attr, attr)
+        atributo = TRADUCCION_ATRIBUTOS.get(attr, attr)
         
         pdf.set_font("Helvetica", 'B', 12)
         pdf.cell(0, 10, f"Atributo: {atributo}", 0, 1)
         pdf.ln(3)
         
         pdf.set_font("Helvetica", '', 12)
-        pdf.cell(0, 10, f"Predicción: {traduccion_valores.get(data['label'], data['label'])}", 0, 1)
+        pdf.cell(0, 10, f"Predicción: {TRADUCCION_VALORES.get(data['label'], data['label'])}", 0, 1)
         pdf.cell(0, 10, f"Confianza: {data['confidence']:.1%}", 0, 1)
         pdf.ln(3)
         
@@ -159,7 +176,7 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="ResNet-50"):
         
         pdf.set_font("Helvetica", '', 11)
         for cls, prob in data['probabilities'].items():
-            clase_traducida = traduccion_valores.get(cls, cls)
+            clase_traducida = TRADUCCION_VALORES.get(cls, cls)
             pdf.cell(90, 8, clase_traducida, 1)
             pdf.cell(90, 8, f"{prob:.1%}", 1)
             pdf.ln()
@@ -176,248 +193,193 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="ResNet-50"):
     
     pdf.set_font("Helvetica", '', 12)
     pdf.multi_cell(0, 10, "Esta sección muestra las matrices de confusión y métricas de los diferentes modelos evaluados para la clasificación de camisetas.")
-    pdf.ln(15)
-
-    # --------------------------
-    # MODELO ALEXNET
-    # --------------------------
-    pdf.set_font("Helvetica", 'B', 14)
-    pdf.cell(0, 10, "AlexNet", 0, 1)
+    pdf.set_font("Helvetica", '', 12)
     pdf.ln(5)
     
-    # Matriz de confusión
-    pdf.image("matriz/alexnet.png", x=10, w=180)
-    pdf.ln(10)
-    
-    # Métricas para Género
+    # Línea 1: Épocas
     pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 10, "Métricas para Género:", 0, 1)
-    pdf.ln(3)
-    
-    # Tabla de métricas de género
-    pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(45, 8, "Categoría", 1)
-    pdf.cell(35, 8, "Precisión", 1)
-    pdf.cell(45, 8, "Sensibilidad (Recall)", 1)
-    pdf.cell(35, 8, "F1-Score", 1)
-    pdf.cell(30, 8, "Exactitud", 1)
-    pdf.ln()
-    
-    pdf.set_font("Helvetica", '', 11)
-    # Hombres
-    pdf.cell(45, 8, "Hombres", 1)
-    pdf.cell(35, 8, "0.9898", 1)
-    pdf.cell(45, 8, "0.9966", 1)
-    pdf.cell(35, 8, "0.9932", 1)
-    pdf.cell(30, 8, "0.9887", 1)
-    pdf.ln()
-    # Mujeres
-    pdf.cell(45, 8, "Mujeres", 1)
-    pdf.cell(35, 8, "0.9833", 1)
-    pdf.cell(45, 8, "0.9516", 1)
-    pdf.cell(35, 8, "0.9672", 1)
-    pdf.cell(30, 8, "0.9887", 1)
-    pdf.ln()
-    # Promedio
-    pdf.cell(45, 8, "Promedio", 1)
-    pdf.cell(35, 8, "0.9865", 1)
-    pdf.cell(45, 8, "0.9741", 1)
-    pdf.cell(35, 8, "0.9802", 1)
-    pdf.cell(30, 8, "0.9887", 1)
-    pdf.ln()
-    
-    pdf.ln(10)
-    
-    # Métricas para Uso
+    pdf.cell(20, 10, "Épocas:", 0, 0)
+    pdf.set_font("Helvetica", '', 12)
+    pdf.cell(0, 10, "30", 0, 1)
+
+    # Línea 2: Entrenamiento
     pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 10, "Métricas para Uso:", 0, 1)
-    pdf.ln(3)
-    
-    # Tabla de métricas de uso
-    pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(45, 8, "Categoría", 1)
-    pdf.cell(35, 8, "Precisión", 1)
-    pdf.cell(45, 8, "Sensibilidad (Recall)", 1)
-    pdf.cell(35, 8, "F1-Score", 1)
-    pdf.cell(30, 8, "Exactitud", 1)
-    pdf.ln()
-    
-    pdf.set_font("Helvetica", '', 11)
-    # Casual
-    pdf.cell(45, 8, "Casual", 1)
-    pdf.cell(35, 8, "0.9394", 1)
-    pdf.cell(45, 8, "0.9714", 1)
-    pdf.cell(35, 8, "0.9551", 1)
-    pdf.cell(30, 8, "0.9221", 1)
-    pdf.ln()
-    # Deportivo
-    pdf.cell(45, 8, "Deportivo", 1)
-    pdf.cell(35, 8, "0.7922", 1)
-    pdf.cell(45, 8, "0.6348", 1)
-    pdf.cell(35, 8, "0.7048", 1)
-    pdf.cell(30, 8, "0.9221", 1)
-    pdf.ln()
-    # Promedio
-    pdf.cell(45, 8, "Promedio", 1)
-    pdf.cell(35, 8, "0.8658", 1)
-    pdf.cell(45, 8, "0.8031", 1)
-    pdf.cell(35, 8, "0.8300", 1)
-    pdf.cell(30, 8, "0.9221", 1)
-    pdf.ln()
-    
+    pdf.cell(35, 10, "Entrenamiento:", 0, 0)
+    pdf.set_font("Helvetica", '', 12)
+    pdf.cell(0, 10, "6,114 imágenes (70%)", 0, 1)
+
+    # Línea 3: Validación
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(25, 10, "Validación:", 0, 0)
+    pdf.set_font("Helvetica", '', 12)
+    pdf.cell(0, 10, "1,310 imágenes (15%)", 0, 1)
+
+    # Línea 4: Prueba
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(20, 10, "Prueba:", 0, 0)
+    pdf.set_font("Helvetica", '', 12)
+    pdf.cell(0, 10, "1,310 imágenes (15%)", 0, 1)
     pdf.ln(15)
 
+    # Mostrar métricas para cada modelo
+    for modelo in metricas_modelos['models'].keys():
+        # --------------------------
+        # ENCABEZADO DEL MODELO
+        # --------------------------
+        pdf.set_font("Helvetica", 'B', 14)
+        pdf.cell(0, 10, modelo, 0, 1)
+        pdf.ln(5)
+        
+        # Matriz de confusión (asumiendo que existe una imagen)
+        try:
+            pdf.image(f"matriz/{modelo.lower()}.png", x=10, w=180)
+            pdf.ln(10)
+        except:
+            pass
+        
+        # Mostrar métricas para cada atributo
+        for atributo in ['gender', 'usage']:
+            metricas = obtener_metricas_modelo(modelo, atributo)
+            if not metricas:
+                continue
+                
+            nombre_atributo = TRADUCCION_ATRIBUTOS.get(atributo, atributo)
+            
+            pdf.set_font("Helvetica", 'B', 12)
+            pdf.cell(0, 10, f"Métricas para {nombre_atributo}:", 0, 1)
+            pdf.ln(3)
+            
+            # Exactitud general
+            pdf.set_font("Helvetica", '', 11)
+            pdf.cell(0, 8, f"Exactitud (Accuracy): {metricas['accuracy']:.2%}", 0, 1)
+            pdf.cell(0, 8, f"Coeficiente MCC: {metricas['mcc']:.4f}", 0, 1)
+            pdf.ln(5)
+            
+            # Tabla de métricas
+            pdf.set_font("Helvetica", 'B', 11)
+            pdf.cell(60, 8, "Categoría", 1)
+            pdf.cell(40, 8, "Precisión", 1)
+            pdf.cell(40, 8, "Sensibilidad", 1)
+            pdf.cell(40, 8, "F1-Score", 1)
+            pdf.ln()
+            
+            pdf.set_font("Helvetica", '', 11)
+            
+            # Obtener las categorías (Hombre/Mujer o Casual/Deportivo)
+            categorias = [k for k in metricas.keys() if k not in ['accuracy', 'precision', 'recall', 'f1_score', 'mcc']]
+            
+            for i, cat in enumerate(categorias):
+                # Usar las métricas individuales si existen
+                if isinstance(metricas[cat], dict):
+                    precision = metricas[cat]['precision']
+                    recall = metricas[cat]['recall']
+                    f1 = metricas[cat]['f1_score']
+                else:
+                    # O usar las listas de métricas
+                    precision = metricas['precision'][i]
+                    recall = metricas['recall'][i]
+                    f1 = metricas['f1_score'][i]
+                
+                nombre_categoria = TRADUCCION_VALORES.get(cat, cat)
+                pdf.cell(60, 8, nombre_categoria, 1)
+                pdf.cell(40, 8, f"{precision:.2%}", 1)
+                pdf.cell(40, 8, f"{recall:.2%}", 1)
+                pdf.cell(40, 8, f"{f1:.2%}", 1)
+                pdf.ln()
+            
+            pdf.ln(10)
+    
+    # ===================================
+    # COMPARACIÓN DE MODELOS
+    # ===================================
+    pdf.add_page()
+    pdf.set_font("Helvetica", 'B', 16)
+    pdf.cell(0, 10, "Comparación de Modelos", 0, 1, 'C')
+    pdf.ln(10)
+    
     # --------------------------
-    # MODELO RESNET50
+    # COMPARACIÓN CON MCC
     # --------------------------
     pdf.set_font("Helvetica", 'B', 14)
-    pdf.cell(0, 10, "ResNet-50", 0, 1)
+    pdf.cell(0, 10, "Coeficiente de Correlación de Matthews (MCC)", 0, 1)
     pdf.ln(5)
     
-    # Matriz de confusión
-    pdf.image("matriz/resnet50.png", x=10, w=180)
+    pdf.set_font("Helvetica", '', 10)
+    pdf.multi_cell(0, 8, "El MCC (Matthews Correlation Coefficient) mide la calidad de la clasificación binaria, especialmente en conjuntos de datos desbalanceados. Va de -1 a 1, donde 1 es perfecto, 0 es aleatorio, y -1 indica fallo total.")
     pdf.ln(10)
     
-    # Métricas para Género
+    # Tabla comparativa de MCC
     pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 10, "Métricas para Género:", 0, 1)
+    pdf.cell(0, 10, "Comparación de MCC entre modelos:", 0, 1)
     pdf.ln(3)
-    
-    # Tabla de métricas de género
-    pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(45, 8, "Categoría", 1)
-    pdf.cell(35, 8, "Precisión", 1)
-    pdf.cell(45, 8, "Sensibilidad (Recall)", 1)
-    pdf.cell(35, 8, "F1-Score", 1)
-    pdf.cell(30, 8, "Exactitud", 1)
-    pdf.ln()
-    
-    pdf.set_font("Helvetica", '', 11)
-    # Hombres
-    pdf.cell(45, 8, "Hombre", 1)
-    pdf.cell(35, 8, "0.95", 1)
-    pdf.cell(45, 8, "0.99", 1)
-    pdf.cell(35, 8, "0.97", 1)
-    pdf.cell(30, 8, "0.95", 1)
-    pdf.ln()
-    # Mujeres
-    pdf.cell(45, 8, "Mujer", 1)
-    pdf.cell(35, 8, "0.94", 1)
-    pdf.cell(45, 8, "0.78", 1)
-    pdf.cell(35, 8, "0.85", 1)
-    pdf.cell(30, 8, "0.95", 1)
-    pdf.ln()
-    
-    pdf.ln(10)
-    
-    # Métricas para Uso
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 10, "Métricas para Uso:", 0, 1)
-    pdf.ln(3)
-    
-    # Tabla de métricas de uso
-    pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(45, 8, "Categoría", 1)
-    pdf.cell(35, 8, "Precisión", 1)
-    pdf.cell(45, 8, "Sensibilidad (Recall)", 1)
-    pdf.cell(35, 8, "F1-Score", 1)
-    pdf.cell(30, 8, "Exactitud", 1)
-    pdf.ln()
-    
-    pdf.set_font("Helvetica", '', 11)
-    # Casual
-    pdf.cell(45, 8, "Casual", 1)
-    pdf.cell(35, 8, "0.91", 1)
-    pdf.cell(45, 8, "0.96", 1)
-    pdf.cell(35, 8, "0.94", 1)
-    pdf.cell(30, 8, "0.88", 1)
-    pdf.ln()
-    # Deportivo
-    pdf.cell(45, 8, "Deportivo", 1)
-    pdf.cell(35, 8, "0.67", 1)
-    pdf.cell(45, 8, "0.44", 1)
-    pdf.cell(35, 8, "0.53", 1)
-    pdf.cell(30, 8, "0.88", 1)
-    pdf.ln()
 
+    pdf.set_font("Helvetica", 'B', 11)
+    pdf.cell(70, 8, "Modelo", 1)
+    pdf.cell(60, 8, "MCC (Género)", 1)
+    pdf.cell(60, 8, "MCC (Uso)", 1)
+    pdf.ln()
+    
+    pdf.set_font("Helvetica", '', 11)
+    for modelo, datos in metricas_modelos['models'].items():
+        mcc_gender = datos['gender']['mcc']
+        mcc_usage = datos['usage']['mcc']
+        
+        pdf.cell(70, 8, modelo, 1)
+        pdf.cell(60, 8, f"{mcc_gender:.4f}", 1)
+        pdf.cell(60, 8, f"{mcc_usage:.4f}", 1)
+        pdf.ln()
     
     pdf.ln(15)
-
+    
     # --------------------------
-    # MODELO EFFICIENTNET
+    # PRUEBA DE McNEMAR
     # --------------------------
     pdf.set_font("Helvetica", 'B', 14)
-    pdf.cell(0, 10, "EfficientNet", 0, 1)
+    pdf.cell(0, 10, "Prueba de McNemar: Comparación de Modelos", 0, 1)
     pdf.ln(5)
     
-    # Matriz de confusión
-    pdf.image("matriz/efficientnet.png", x=10, w=180)
+    pdf.set_font("Helvetica", '', 10)
+    pdf.multi_cell(0, 8, "La prueba de McNemar permite comparar directamente si dos modelos tienen diferencias estadísticamente significativas en su rendimiento. Se considera significativa si p < 0.05.")
     pdf.ln(10)
     
-    # Métricas para Género
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 10, "Métricas para Género:", 0, 1)
-    pdf.ln(3)
-    
-    # Tabla de métricas de género
-    pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(45, 8, "Categoría", 1)
-    pdf.cell(35, 8, "Precisión", 1)
-    pdf.cell(45, 8, "Sensibilidad (Recall)", 1)
-    pdf.cell(35, 8, "F1-Score", 1)
-    pdf.cell(30, 8, "Exactitud", 1)
-    pdf.ln()
-    
-    pdf.set_font("Helvetica", '', 11)
-    # Hombres
-    pdf.cell(45, 8, "Hombre", 1)
-    pdf.cell(35, 8, "0.8317", 1)
-    pdf.cell(45, 8, "0.9389", 1)
-    pdf.cell(35, 8, "0.8821", 1)
-    pdf.cell(30, 8, "0.7930", 1)
-    pdf.ln()
-    # Mujeres
-    pdf.cell(45, 8, "Mujer", 1)
-    pdf.cell(35, 8, "0.2711", 1)
-    pdf.cell(45, 8, "0.1067", 1)
-    pdf.cell(35, 8, "0.1532", 1)
-    pdf.cell(30, 8, "0.7930", 1)
-    pdf.ln()
+    diferencias = []  # guardamos diferencias significativas
 
-    
-    pdf.ln(10)
-    
-    # Métricas para Uso
+    for comparacion, resultados in metricas_modelos['mcnemar'].items():
+        modelo1, modelo2 = comparacion.split('_vs_')
+        
+        pdf.set_font("Helvetica", 'B', 11)
+        pdf.cell(0, 8, f"Comparación: {modelo1} vs {modelo2}", 0, 1)
+        pdf.ln(2)
+        
+        # Género
+        chi2_gen = resultados['gender']['chi2']
+        p_gen = resultados['gender']['pvalue']
+        sig_gen = "(significativo)" if p_gen < 0.05 else "(no significativo)"
+        if p_gen < 0.05:
+            diferencias.append(f"{modelo1} vs {modelo2} (género)")
+
+        pdf.set_font("Helvetica", '', 10)
+        pdf.cell(0, 8, f"  - Género: Chi2 = {chi2_gen:.4f}, p = {p_gen:.4f} {sig_gen}", 0, 1)
+        
+        # Uso
+        chi2_uso = resultados['usage']['chi2']
+        p_uso = resultados['usage']['pvalue']
+        sig_uso = "(significativo)" if p_uso < 0.05 else "(no significativo)"
+        if p_uso < 0.05:
+            diferencias.append(f"{modelo1} vs {modelo2} (uso)")
+
+        pdf.cell(0, 8, f"  - Uso: Chi2 = {chi2_uso:.4f}, p = {p_uso:.4f} {sig_uso}", 0, 1)
+        pdf.ln(5)
+
+    # Interpretación final
     pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 10, "Métricas para Uso:", 0, 1)
-    pdf.ln(3)
-    
-    # Tabla de métricas de uso
-    pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(45, 8, "Categoría", 1)
-    pdf.cell(35, 8, "Precisión", 1)
-    pdf.cell(45, 8, "Sensibilidad (Recall)", 1)
-    pdf.cell(35, 8, "F1-Score", 1)
-    pdf.cell(30, 8, "Exactitud", 1)
-    pdf.ln()
-    
-    pdf.set_font("Helvetica", '', 11)
-    # Casual
-    pdf.cell(45, 8, "Casual", 1)
-    pdf.cell(35, 8, "0.4733", 1)
-    pdf.cell(45, 8, "0.0343", 1)
-    pdf.cell(35, 8, "0.0639", 1)
-    pdf.cell(30, 8, "0.1432", 1)
-    pdf.ln()
-    # Deportivo
-    pdf.cell(45, 8, "Deportivo", 1)
-    pdf.cell(35, 8, "0.1214", 1)
-    pdf.cell(45, 8, "0.7777", 1)
-    pdf.cell(35, 8, "0.2100", 1)
-    pdf.cell(30, 8, "0.1432", 1)
-    pdf.ln()
-   
-    
+    pdf.cell(0, 10, "Conclusión General", 0, 1)
+    pdf.set_font("Helvetica", '', 10)
+    if diferencias:
+        pdf.multi_cell(0, 8, "Se encontraron diferencias estadísticamente significativas en las siguientes comparaciones:\n- " + "\n- ".join(diferencias) + "\n\nEsto sugiere que los modelos comparados no tienen el mismo rendimiento y uno puede ser superior al otro.")
+    else:
+        pdf.multi_cell(0, 8, "No se encontraron diferencias estadísticamente significativas (p ≥ 0.05) entre los modelos en ninguna de las comparaciones. Esto indica que su rendimiento es similar en los conjuntos evaluados.")
+
     # Pie de página
     pdf.ln(10)
     pdf.set_font("Helvetica", 'I', 10)
@@ -434,6 +396,7 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="ResNet-50"):
         pass
     
     return temp_pdf.name
+
 # ======================
 # INTERFAZ PRINCIPAL
 # ======================
@@ -482,14 +445,10 @@ if st.session_state.prediccion and st.session_state.imagen:
     
     with col2:
         st.subheader("Resultados del Análisis")
-        
-        # Traducciones para la interfaz
-        nombres_atributos = {'gender': 'Género', 'usage': 'Uso'}
-        traduccion_valores = {'Men': 'Hombre', 'Women': 'Mujer', 'Casual': 'Casual', 'Sports': 'Deportivo'}
-        
+    
         for attr, data in st.session_state.prediccion.items():
-            nombre_atributo = nombres_atributos[attr]
-            valor_traducido = traduccion_valores[data['label']]
+            nombre_atributo = TRADUCCION_ATRIBUTOS[attr]
+            valor_traducido = TRADUCCION_VALORES[data['label']]
             
             # Barra de progreso para la confianza
             st.progress(data['confidence'], text=f"**{nombre_atributo}**: {valor_traducido} ({data['confidence']:.1%})")
@@ -497,7 +456,7 @@ if st.session_state.prediccion and st.session_state.imagen:
             # Mostrar probabilidades en un expander
             with st.expander(f"Detalles de {nombre_atributo.lower()}"):
                 for cls, prob in data['probabilities'].items():
-                    clase_traducida = traduccion_valores[cls]
+                    clase_traducida = TRADUCCION_VALORES[cls]
                     st.metric(label=clase_traducida, value=f"{prob:.1%}")
     
     # Sección para generar reporte PDF
@@ -510,7 +469,7 @@ if st.session_state.prediccion and st.session_state.imagen:
                 pdf_path = generar_reporte_prediccion(
                     st.session_state.prediccion, 
                     st.session_state.imagen,
-                    nombre_modelo="AlexNet"
+                    nombre_modelo="MobileNet"  # Cambiado de AlexNet a MobileNet
                 )
                 
                 st.success("✅ Reporte generado con éxito!")

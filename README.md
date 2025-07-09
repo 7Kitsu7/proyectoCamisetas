@@ -44,3 +44,24 @@ Instalación de dependencias:
 
 ```bash
 pip install -r requirements.txt
+```
+
+---
+
+## 🚀 ¿Cómo ejecutar el proyecto?
+
+Sigue estos pasos para correr el software:
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/7Kitsu7/proyectoCamisetas.git
+cd proyectoCamisetas
+
+# 2. Instalar dependencias
+pip install -r requirements.txt
+
+# 3. Ejecutar la interfaz gráfica
+streamlit run app.py
+```
+
+Esto abrirá automáticamente una ventana del navegador con la interfaz del sistema, donde podrás cargar imágenes y obtener la predicción de género y uso para camisetas.

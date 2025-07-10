@@ -63,7 +63,7 @@ cd proyectoCamisetas
 pip install -r requirements.txt
 
 # 3. Descargar la carpeta model del link "Modelos" y pegar en la raiz del proyecto
-
+🔗 [Modelos](https://drive.google.com/drive/folders/1cP5LhZmIPMIS12xyV92dohvWlkdaXoUv)
 # 4. Agregar la carpeta images del dataset "Fashion Product Images Dataset" en la raiz del proyecto 
 
 # 5. Ejecutar la interfaz gráfica

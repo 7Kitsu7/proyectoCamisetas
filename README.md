@@ -70,6 +70,9 @@ Carpeta images del dataset "Fashion Product Images Dataset" en la raiz del proye
 
 # 5. Ejecutar la interfaz gráfica
 streamlit run app.py
+
+# 6. Opcional (Si desea volver a evaluar los modelos)
+streamlit run evaluar_modelos.py
 ```
 
 Esto abrirá automáticamente una ventana del navegador con la interfaz del sistema, donde podrás cargar imágenes y obtener la predicción de género y uso para camisetas.

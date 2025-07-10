@@ -60,6 +60,9 @@ cd proyectoCamisetas
 # 2. Instalar dependencias
 pip install -r requirements.txt
 
+# 2. Descargar la carpeta model del DRIVE y pegar en la raiz del proyecto
+Drive: https://drive.google.com/drive/folders/1cP5LhZmIPMIS12xyV92dohvWlkdaXoUv
+🔗 [Fashion Product Images Dataset](https://www.kaggle.com/datasets/paramaggarwal/fashion-product-images-dataset)
 # 3. Ejecutar la interfaz gráfica
 streamlit run app.py
 ```

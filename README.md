@@ -65,3 +65,11 @@ streamlit run app.py
 ```
 
 Esto abrirá automáticamente una ventana del navegador con la interfaz del sistema, donde podrás cargar imágenes y obtener la predicción de género y uso para camisetas.
+
+---
+
+## 🧪 Ejemplo de uso
+
+A continuación, se muestra la interfaz del sistema ejecutándose en Streamlit:
+
+<p align="center"> <img src="img/interfaz1.png" width="700"/> </p> <p align="center"> <img src="img/interfaz2.png" width="700"/> </p>

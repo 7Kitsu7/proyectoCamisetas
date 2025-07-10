@@ -52,6 +52,8 @@ pip install -r requirements.txt
 
 Sigue estos pasos para correr el software:
 
+🔗 [Modelos](https://drive.google.com/drive/folders/1cP5LhZmIPMIS12xyV92dohvWlkdaXoUv)
+
 ```bash
 # 1. Clonar el repositorio
 git clone https://github.com/7Kitsu7/proyectoCamisetas.git
@@ -60,10 +62,11 @@ cd proyectoCamisetas
 # 2. Instalar dependencias
 pip install -r requirements.txt
 
-# 2. Descargar la carpeta model del DRIVE y pegar en la raiz del proyecto
-Drive: https://drive.google.com/drive/folders/1cP5LhZmIPMIS12xyV92dohvWlkdaXoUv
-🔗 [Fashion Product Images Dataset](https://www.kaggle.com/datasets/paramaggarwal/fashion-product-images-dataset)
-# 3. Ejecutar la interfaz gráfica
+# 3. Descargar la carpeta model del link "Modelos" y pegar en la raiz del proyecto
+
+# 4. Agregar la carpeta images del dataset "Fashion Product Images Dataset" en la raiz del proyecto 
+
+# 5. Ejecutar la interfaz gráfica
 streamlit run app.py
 ```
 

@@ -72,4 +72,5 @@ Esto abrirá automáticamente una ventana del navegador con la interfaz del sist
 
 A continuación, se muestra la interfaz del sistema ejecutándose en Streamlit:
 
-<p align="center"> <img src="img/interfaz1.png" width="700"/> </p> <p align="center"> <img src="img/interfaz2.png" width="700"/> </p>
+<p align="center"> <img src="img/interfaz1.png" width="700"/> </p> <p align="center"> <img src="img/interfaz2.png" width="700"/> </p> 
+<p align="center"> <img src="img/interfaz3.png" width="700"/> </p> <p align="center"> <img src="img/interfaz4.png" width="700"/> </p>

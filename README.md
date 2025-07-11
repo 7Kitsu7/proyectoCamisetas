@@ -108,9 +108,7 @@ A continuación, se muestra la interfaz del sistema ejecutándose en Streamlit:
 
 ## 🚀 Prueba el software ahora  
 
-```bash
-https://clasificador-camisetas.streamlit.app/
-```
+[Abrir programa](https://clasificador-camisetas.streamlit.app/)
 
 
 ---

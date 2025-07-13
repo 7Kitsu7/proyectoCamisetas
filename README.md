@@ -106,6 +106,13 @@ A continuación, se muestra la interfaz del sistema ejecutándose en Streamlit:
 
 ---
 
+## 🚀 Prueba el software ahora  
+
+[Abrir programa](https://clasificador-camisetas.streamlit.app/)
+
+
+---
+
 ## 📝 Referencias
 
 Abbas, W., Zhang, Z., Asim, M., Chen, J., & Ahmad, S. (2024). Ai-driven precision clothing classification: Revolutionizing online fashion retailing with hybrid two-objective learning. Information, 15(4), 196. https://doi.org/10.3390/info15040196 

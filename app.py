@@ -11,6 +11,7 @@ from datetime import datetime
 import tempfile
 import json
 from fpdf.enums import XPos, YPos
+
 # Configuración de la página
 st.set_page_config(page_title="Clasificador de Camisetas", page_icon="👕", layout="wide")
 
@@ -90,6 +91,114 @@ Upload a clear image of a t-shirt to get the analysis.
         'sports': "Sports",
         'processing_error': "❌ Error processing image: {error}",
         'model_error': "Error loading model: {error}"
+    },
+    'fr': {
+        'app_title': "👕 Classificateur d'Attributs de T-shirts",
+        'app_description': "Téléchargez une image d'un t-shirt pour analyser ses attributs:",
+        'gender': "Genre",
+        'usage': "Utilisation",
+        'upload_label': "Sélectionnez une image de t-shirt",
+        'image_uploaded': "Image téléchargée",
+        'analyze_button': "Analyser l'image",
+        'analyzing': "Analyse de l'image...",
+        'analysis_complete': "Analyse terminée avec succès!",
+        'analyzed_image': "Image Analysée",
+        'analysis_results': "Résultats de l'Analyse",
+        'details': "Détails sur {attribute}",
+        'generate_report': "Générer un Rapport",
+        'generating_pdf': "Génération du document PDF...",
+        'report_success': "✅ Rapport généré avec succès!",
+        'download_report': "⬇️ Télécharger le Rapport Complet",
+        'pdf_report_name': "rapport_t-shirt",
+        'report_error': "❌ Erreur lors de la génération du rapport: {error}",
+        'about_title': "À propos de cette application",
+        'about_content': """
+Cet outil utilise l'intelligence artificielle pour analyser les attributs des t-shirts.
+
+**Attributs qu'il peut identifier:**
+- **Genre**: Homme / Femme
+- **Utilisation**: Casual / Sport
+
+Téléchargez une image claire d'un t-shirt pour obtenir l'analyse.
+""",
+        'men': "Homme",
+        'women': "Femme",
+        'casual': "Casual",
+        'sports': "Sport",
+        'processing_error': "❌ Erreur de traitement de l'image: {error}",
+        'model_error': "Erreur de chargement du modèle: {error}"
+    },
+    'de': {
+        'app_title': "👕 T-Shirt Attribut-Klassifikator",
+        'app_description': "Laden Sie ein T-Shirt-Bild hoch, um seine Attribute zu analysieren:",
+        'gender': "Geschlecht",
+        'usage': "Verwendung",
+        'upload_label': "Wählen Sie ein T-Shirt-Bild aus",
+        'image_uploaded': "Bild hochgeladen",
+        'analyze_button': "Bild analysieren",
+        'analyzing': "Bild wird analysiert...",
+        'analysis_complete': "Analyse erfolgreich abgeschlossen!",
+        'analyzed_image': "Analysiertes Bild",
+        'analysis_results': "Analyseergebnisse",
+        'details': "Details über {attribute}",
+        'generate_report': "Bericht erstellen",
+        'generating_pdf': "PDF-Dokument wird erstellt...",
+        'report_success': "✅ Bericht erfolgreich erstellt!",
+        'download_report': "⬇️ Vollständigen Bericht herunterladen",
+        'pdf_report_name': "t-shirt_bericht",
+        'report_error': "❌ Fehler beim Erstellen des Berichts: {error}",
+        'about_title': "Über diese App",
+        'about_content': """
+Dieses Tool verwendet künstliche Intelligenz, um T-Shirt-Attribute zu analysieren.
+
+**Attribute, die es identifizieren kann:**
+- **Geschlecht**: Männer / Frauen
+- **Verwendung**: Casual / Sport
+
+Laden Sie ein klares Bild eines T-Shirts hoch, um die Analyse zu erhalten.
+""",
+        'men': "Männer",
+        'women': "Frauen",
+        'casual': "Casual",
+        'sports': "Sport",
+        'processing_error': "❌ Fehler bei der Bildverarbeitung: {error}",
+        'model_error': "Fehler beim Laden des Modells: {error}"
+    },
+    'zh': {
+        'app_title': "👕 T恤属性分类器",
+        'app_description': "上传T恤图片以分析其属性:",
+        'gender': "性别",
+        'usage': "用途",
+        'upload_label': "选择T恤图片",
+        'image_uploaded': "图片已上传",
+        'analyze_button': "分析图片",
+        'analyzing': "正在分析图片...",
+        'analysis_complete': "分析成功完成!",
+        'analyzed_image': "已分析图片",
+        'analysis_results': "分析结果",
+        'details': "{attribute}详情",
+        'generate_report': "生成报告",
+        'generating_pdf': "正在生成PDF文档...",
+        'report_success': "✅ 报告生成成功!",
+        'download_report': "⬇️ 下载完整报告",
+        'pdf_report_name': "t恤报告",
+        'report_error': "❌ 生成报告时出错: {error}",
+        'about_title': "关于此应用",
+        'about_content': """
+此工具使用人工智能分析T恤属性。
+
+**可识别的属性:**
+- **性别**: 男 / 女
+- **用途**: 休闲 / 运动
+
+上传清晰的T恤图片以获取分析。
+""",
+        'men': "男",
+        'women': "女",
+        'casual': "休闲",
+        'sports': "运动",
+        'processing_error': "❌ 图片处理错误: {error}",
+        'model_error': "加载模型错误: {error}"
     }
 }
 
@@ -136,7 +245,11 @@ PDF_TRANSLATIONS = {
         'conclusion': "Conclusión General",
         'significant_differences': "Se encontraron diferencias estadísticamente significativas en las siguientes comparaciones:\n- {differences}\n\nEsto sugiere que los modelos comparados no tienen el mismo rendimiento y uno puede ser superior al otro.",
         'no_differences': "No se encontraron diferencias estadísticamente significativas (p ≥ 0.05) entre los modelos en ninguna de las comparaciones. Esto indica que su rendimiento es similar en los conjuntos evaluados.",
-        'footer': "Reporte generado automáticamente por el Clasificador de Camisetas"
+        'footer': "Reporte generado automáticamente por el Clasificador de Camisetas",
+        'roc_gender': "Curva ROC Género",
+        'roc_usage': "Curva ROC Uso",
+        'heatmap_gender': "Mapa de calor Género",
+        'heatmap_usage': "Mapa de calor Uso"
     },
     'en': {
         'report_title': "T-shirt Analysis Report",
@@ -179,7 +292,152 @@ PDF_TRANSLATIONS = {
         'conclusion': "General Conclusion",
         'significant_differences': "Statistically significant differences were found in the following comparisons:\n- {differences}\n\nThis suggests that the compared models do not have the same performance and one may be superior to the other.",
         'no_differences': "No statistically significant differences (p ≥ 0.05) were found between models in any of the comparisons. This indicates that their performance is similar in the evaluated sets.",
-        'footer': "Report automatically generated by the T-shirt Classifier"
+        'footer': "Report automatically generated by the T-shirt Classifier",
+        'roc_gender': "ROC Curve Gender",
+        'roc_usage': "ROC Curve Usage",
+        'heatmap_gender': "Heatmap Gender",
+        'heatmap_usage': "Heatmap Usage"
+    },
+    'fr': {
+        'report_title': "Rapport d'Analyse de T-shirt",
+        'analysis_date': "Date d'analyse: {date}",
+        'model_used': "Modèle utilisé: {model}",
+        'analyzed_image': "Image analysée:",
+        'main_results': "Résultats principaux:",
+        'attribute': "Attribut",
+        'prediction': "Prédiction",
+        'confidence': "Confiance",
+        'attribute_details': "Détails par attribut:",
+        'category': "Catégorie",
+        'probability': "Probabilité",
+        'model_evaluation': "Évaluation des Modèles",
+        'evaluation_description': "Cette section montre les matrices de confusion et les métriques des différents modèles évalués pour la classification des t-shirts.",
+        'epochs': "Époques:",
+        'training': "Entraînement:",
+        'validation': "Validation:",
+        'testing': "Test:",
+        'metrics_for': "Métriques pour {attribute}:",
+        'accuracy': "Précision: {accuracy}",
+        'mcc': "Coefficient MCC: {mcc}",
+        'precision': "Précision",
+        'recall': "Rappel",
+        'f1_score': "F1-Score",
+        'model_comparison': "Comparaison des Modèles",
+        'mcc_title': "Coefficient de Corrélation de Matthews (MCC)",
+        'mcc_description': "Le MCC (Matthews Correlation Coefficient) mesure la qualité de la classification binaire, en particulier dans les ensembles de données déséquilibrés. Il varie de -1 à 1, où 1 est parfait, 0 est aléatoire et -1 indique un échec total.",
+        'mcc_comparison': "Comparaison MCC entre modèles:",
+        'model': "Modèle",
+        'mcc_gender': "MCC (Genre)",
+        'mcc_usage': "MCC (Utilisation)",
+        'mcnemar_title': "Test de McNemar: Comparaison de Modèles",
+        'mcnemar_description': "Le test de McNemar permet de comparer directement si deux modèles présentent des différences statistiquement significatives dans leurs performances. Il est considéré comme significatif si p < 0,05.",
+        'comparison': "Comparaison: {model1} vs {model2}",
+        'gender': "Genre",
+        'usage': "Utilisation",
+        'significant': "(significatif)",
+        'not_significant': "(non significatif)",
+        'conclusion': "Conclusion Générale",
+        'significant_differences': "Des différences statistiquement significatives ont été trouvées dans les comparaisons suivantes:\n- {differences}\n\nCela suggère que les modèles comparés n'ont pas la même performance et que l'un peut être supérieur à l'autre.",
+        'no_differences': "Aucune différence statistiquement significative (p ≥ 0,05) n'a été trouvée entre les modèles dans aucune des comparaisons. Cela indique que leurs performances sont similaires dans les ensembles évalués.",
+        'footer': "Rapport généré automatiquement par le Classificateur de T-shirts",
+        'roc_gender': "Courbe ROC Genre",
+        'roc_usage': "Courbe ROC Utilisation",
+        'heatmap_gender': "Carte thermique Genre",
+        'heatmap_usage': "Carte thermique Utilisation"
+    },
+    'de': {
+        'report_title': "T-Shirt-Analysebericht",
+        'analysis_date': "Analyse-Datum: {date}",
+        'model_used': "Verwendetes Modell: {model}",
+        'analyzed_image': "Analysiertes Bild:",
+        'main_results': "Hauptergebnisse:",
+        'attribute': "Attribut",
+        'prediction': "Vorhersage",
+        'confidence': "Konfidenz",
+        'attribute_details': "Details nach Attribut:",
+        'category': "Kategorie",
+        'probability': "Wahrscheinlichkeit",
+        'model_evaluation': "Modellbewertung",
+        'evaluation_description': "Dieser Abschnitt zeigt die Konfusionsmatrizen und Metriken der verschiedenen für die T-Shirt-Klassifizierung bewerteten Modelle.",
+        'epochs': "Epochen:",
+        'training': "Training:",
+        'validation': "Validierung:",
+        'testing': "Test:",
+        'metrics_for': "Metriken für {attribute}:",
+        'accuracy': "Genauigkeit: {accuracy}",
+        'mcc': "MCC-Koeffizient: {mcc}",
+        'precision': "Präzision",
+        'recall': "Recall",
+        'f1_score': "F1-Score",
+        'model_comparison': "Modellvergleich",
+        'mcc_title': "Matthews Korrelationskoeffizient (MCC)",
+        'mcc_description': "Der MCC (Matthews Correlation Coefficient) misst die Qualität der binären Klassifikation, insbesondere in unausgewogenen Datensätzen. Er reicht von -1 bis 1, wobei 1 perfekt, 0 zufällig und -1 ein totaler Fehler ist.",
+        'mcc_comparison': "MCC-Vergleich zwischen Modellen:",
+        'model': "Modell",
+        'mcc_gender': "MCC (Geschlecht)",
+        'mcc_usage': "MCC (Verwendung)",
+        'mcnemar_title': "McNemar-Test: Modellvergleich",
+        'mcnemar_description': "Der McNemar-Test ermöglicht den direkten Vergleich, ob zwei Modelle statistisch signifikante Unterschiede in ihrer Leistung aufweisen. Er gilt als signifikant, wenn p < 0,05.",
+        'comparison': "Vergleich: {model1} vs {model2}",
+        'gender': "Geschlecht",
+        'usage': "Verwendung",
+        'significant': "(signifikant)",
+        'not_significant': "(nicht signifikant)",
+        'conclusion': "Allgemeine Schlussfolgerung",
+        'significant_differences': "In den folgenden Vergleichen wurden statistisch signifikante Unterschiede festgestellt:\n- {differences}\n\nDies deutet darauf hin, dass die verglichenen Modelle nicht die gleiche Leistung haben und eines dem anderen überlegen sein kann.",
+        'no_differences': "Es wurden keine statistisch signifikanten Unterschiede (p ≥ 0,05) zwischen den Modellen in irgendeinem der Vergleiche festgestellt. Dies deutet darauf hin, dass ihre Leistung in den bewerteten Sätzen ähnlich ist.",
+        'footer': "Bericht automatisch generiert vom T-Shirt-Klassifikator",
+        'roc_gender': "ROC-Kurve Geschlecht",
+        'roc_usage': "ROC-Kurve Verwendung",
+        'heatmap_gender': "Heatmap Geschlecht",
+        'heatmap_usage': "Heatmap Verwendung"
+    },
+    'zh': {
+        'report_title': "T恤分析报告",
+        'analysis_date': "分析日期: {date}",
+        'model_used': "使用的模型: {model}",
+        'analyzed_image': "已分析图片:",
+        'main_results': "主要结果:",
+        'attribute': "属性",
+        'prediction': "预测",
+        'confidence': "置信度",
+        'attribute_details': "按属性详细:",
+        'category': "类别",
+        'probability': "概率",
+        'model_evaluation': "模型评估",
+        'evaluation_description': "本节显示为T恤分类评估的不同模型的混淆矩阵和指标。",
+        'epochs': "训练轮数:",
+        'training': "训练:",
+        'validation': "验证:",
+        'testing': "测试:",
+        'metrics_for': "{attribute}的指标:",
+        'accuracy': "准确率: {accuracy}",
+        'mcc': "MCC系数: {mcc}",
+        'precision': "精确率",
+        'recall': "召回率",
+        'f1_score': "F1分数",
+        'model_comparison': "模型比较",
+        'mcc_title': "马修斯相关系数(MCC)",
+        'mcc_description': "MCC(Matthews Correlation Coefficient)衡量二元分类的质量,特别是在不平衡数据集中。范围从-1到1,其中1是完美的,0是随机的,-1表示完全失败。",
+        'mcc_comparison': "模型间MCC比较:",
+        'model': "模型",
+        'mcc_gender': "MCC(性别)",
+        'mcc_usage': "MCC(用途)",
+        'mcnemar_title': "McNemar检验:模型比较",
+        'mcnemar_description': "McNemar检验可以直接比较两个模型的性能是否存在统计学上的显著差异。如果p < 0.05则认为显著。",
+        'comparison': "比较: {model1} vs {model2}",
+        'gender': "性别",
+        'usage': "用途",
+        'significant': "(显著)",
+        'not_significant': "(不显著)",
+        'conclusion': "总体结论",
+        'significant_differences': "在以下比较中发现统计学上的显著差异:\n- {differences}\n\n这表明比较的模型不具有相同的性能,一个可能优于另一个。",
+        'no_differences': "在任何比较中均未发现模型之间存在统计学上的显著差异(p ≥ 0.05)。这表明它们的性能在评估集中相似。",
+        'footer': "报告由T恤分类器自动生成",
+        'roc_gender': "ROC曲线 性别",
+        'roc_usage': "ROC曲线 用途",
+        'heatmap_gender': "热图 性别",
+        'heatmap_usage': "热图 用途"
     }
 }
 
@@ -218,7 +476,17 @@ FLAGS = {
         'url': 'https://flagcdn.com/w40/gb.png',
         'tooltip': 'English',
         'border_color': '#012169'
-    }
+    },
+    'fr': {
+        'url': 'https://flagcdn.com/w40/fr.png',
+        'tooltip': 'Français',
+        'border_color': '#0055A4'
+    },
+    'de': {
+        'url': 'https://flagcdn.com/w40/de.png',
+        'tooltip': 'Deutsch',
+        'border_color': '#000000'
+    },
 }
 
 # Función para formatear las opciones del radio button
@@ -270,6 +538,15 @@ with st.sidebar:
             div[role="radiogroup"] div[aria-checked="true"]:has(img[src*="gb.png"]) img {
                 border-color: #012169;
             }
+            div[role="radiogroup"] div[aria-checked="true"]:has(img[src*="fr.png"]) img {
+                border-color: #0055A4;
+            }
+            div[role="radiogroup"] div[aria-checked="true"]:has(img[src*="de.png"]) img {
+                border-color: #000000;
+            }
+            div[role="radiogroup"] div[aria-checked="true"]:has(img[src*="cn.png"]) img {
+                border-color: #DE2910;
+            }
             /* Ajustar tamaño de la bandera */
             div[data-testid="stRadio"] img {
                 width: 30px;
@@ -313,7 +590,12 @@ TRADUCCION_VALORES = {
     'Men': t('men', language), 'Women': t('women', language), 
     'Casual': t('casual', language), 'Sports': t('sports', language),
     'Hombre': t('men', language), 'Mujer': t('women', language),
-    'Deportivo': t('sports', language)
+    'Deportivo': t('sports', language),
+    'Homme': t('men', language), 'Femme': t('women', language),
+    'Sport': t('sports', language),
+    'Männer': t('men', language), 'Frauen': t('women', language),
+    '男': t('men', language), '女': t('women', language),
+    '运动': t('sports', language)
 }
 
 # ======================
@@ -420,10 +702,10 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="MobileNet"):
     pdf.set_font("Helvetica", '', 12)
     for attr, data in prediccion.items():
         atributo = TRADUCCION_ATRIBUTOS.get(attr, attr)
-        valor = TRADUCCION_VALORES.get(data['label'], data['label'])
+        valor_traducido = TRADUCCION_VALORES.get(data['label'], data['label'])
         
         pdf.cell(70, 10, atributo, 1)
-        pdf.cell(70, 10, valor, 1)
+        pdf.cell(70, 10, valor_traducido, 1)
         pdf.cell(50, 10, f"{data['confidence']:.1%}", 1)
         pdf.ln()
     
@@ -566,6 +848,18 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="MobileNet"):
             
             pdf.ln(10)
     
+
+
+    pdf.set_font("Helvetica", 'B', 14)
+    pdf.cell(0, 10, pdf_t('roc_gender', language), 0, 1)
+    pdf.image(f"curva/roc_gender.png", x=10, w=150)
+    pdf.ln(10)
+
+    pdf.set_font("Helvetica", 'B', 14)
+    pdf.cell(0, 10, pdf_t('roc_usage', language), 0, 1)
+    pdf.image(f"curva/roc_usage.png", x=10, w=150)
+    pdf.ln(10)
+
     # ===================================
     # COMPARACIÓN DE MODELOS
     # ===================================
@@ -619,6 +913,17 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="MobileNet"):
     pdf.multi_cell(0, 8, pdf_t('mcnemar_description', language))
     pdf.ln(10)
     
+    pdf.set_font("Helvetica", 'B', 14)
+    pdf.cell(0, 10, pdf_t('heatmap_gender', language), 0, 1)
+    pdf.image(f"mapa/mapa_rho_genero.png", x=10, w=120)
+    pdf.ln(10)
+
+    pdf.set_font("Helvetica", 'B', 14)
+    pdf.cell(0, 10, pdf_t('heatmap_usage', language), 0, 1)
+    pdf.image(f"mapa/mapa_rho_uso.png", x=10, w=120)
+    pdf.ln(10)
+
+
     diferencias = []  # guardamos diferencias significativas
 
     for comparacion, resultados in metricas_modelos['mcnemar'].items():

@@ -1,3 +1,6 @@
 /images
 /.venv
 /__pycache__
+/mapa.py
+/roc.py
+/model

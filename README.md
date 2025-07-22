@@ -4,7 +4,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 ![Estado](https://img.shields.io/badge/Estado-Finalizado-brightgreen)
 
-Este proyecto implementa un sistema automatizado de clasificación de camisetas mediante **redes neuronales convolucionales (CNN)**. Está enfocado en mejorar la **categorización multiatributo** de productos textiles en el **comercio electrónico**, utilizando las arquitecturas **AlexNet, MobileNet y ResNet-50**.
+Este proyecto implementa un sistema automatizado de clasificación de camisetas mediante **redes neuronales convolucionales (CNN)**. Está enfocado en mejorar la **categorización multiatributo** de productos textiles en el **comercio electrónico**, utilizando las arquitecturas **AlexNet, MobileNet, ResNet-50, MobileNetV2+AlexNet y MobileNetV2+ResNet-50**.
 
 El sistema fue entrenado y evaluado sobre el dataset oficial de Kaggle:  
 🔗 [Fashion Product Images Dataset](https://www.kaggle.com/datasets/paramaggarwal/fashion-product-images-dataset)
@@ -14,7 +14,7 @@ El sistema fue entrenado y evaluado sobre el dataset oficial de Kaggle:
 ## 📌 Características principales
 
 - ✅ Clasificación de camisetas por imagen
-- 🧠 Modelos CNN: AlexNet, MobileNet y ResNet-50
+- 🧠 Modelos CNN: AlexNet, MobileNet, ResNet-50, MobileNetV2+AlexNet y MobileNetV2+ResNet-50
 - 📊 Evaluación con precisión, prueba de McNemar y MCC
 - 🎯 Clasificación por **género** y por **uso**
 - 🌐 Interfaz gráfica amigable desarrollada con **Streamlit**

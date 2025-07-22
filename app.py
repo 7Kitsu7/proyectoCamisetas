@@ -55,9 +55,9 @@ Suba una imagen clara de una camiseta para obtener el análisis.
         'sports': "Deportivo",
         'processing_error': "❌ Error al procesar la imagen: {error}",
         'model_error': "Error al cargar el modelo: {error}",
-        'model_selection': "Seleccione el modelo a utilizar:",
+        'model_selection': "Seleccione el modelo a utilizar",
         'MobileNet': "MobileNet",
-        'MobileNet-AlexNet': "MobileNet-AlexNet (Híbrido)"
+        'MobileNetV2+AlexNet': "MobileNetV2 + AlexNet (Híbrido)"
     },
     'en': {
         'app_title': "👕 T-shirt Attribute Classifier",
@@ -94,9 +94,9 @@ Upload a clear image of a t-shirt to get the analysis.
         'sports': "Sports",
         'processing_error': "❌ Error processing image: {error}",
         'model_error': "Error loading model: {error}",
-        'model_selection': "Select model to use:",
-        'MobileNet': "MobileNet",
-        'MobileNet-AlexNet': "MobileNet-AlexNet (Hybrid)"
+        'model_selection': "Select model to use",
+        'MobileNet': "MobileNet", 
+        'MobileNetV2+AlexNet': "MobileNetV2 + AlexNet (Hybrid)"
     },
     'fr': {
         'app_title': "👕 Classificateur d'Attributs de T-shirts",
@@ -133,9 +133,9 @@ Téléchargez une image claire d'un t-shirt pour obtenir l'analyse.
         'sports': "Sport",
         'processing_error': "❌ Erreur de traitement de l'image: {error}",
         'model_error': "Erreur de chargement du modèle: {error}",
-        'model_selection': "Sélectionnez le modèle à utiliser:",
+        'model_selection': "Sélectionnez le modèle à utiliser",
         'MobileNet': "MobileNet",
-        'MobileNet-AlexNet': "MobileNet-AlexNet (Hybride)"
+        'MobileNetV2+AlexNet': "MobileNetV2 + AlexNet (Hybride)"
     },
     'de': {
         'app_title': "👕 T-Shirt Attribut-Klassifikator",
@@ -172,9 +172,9 @@ Laden Sie ein klares Bild eines T-Shirts hoch, um die Analyse zu erhalten.
         'sports': "Sport",
         'processing_error': "❌ Fehler bei der Bildverarbeitung: {error}",
         'model_error': "Fehler beim Laden des Modells: {error}",
-        'model_selection': "Modell auswählen:",
+        'model_selection': "Modellauswahl",
         'MobileNet': "MobileNet",
-        'MobileNet-AlexNet': "MobileNet-AlexNet (Hybrid)"
+        'MobileNetV2+AlexNet': "MobileNetV2 + AlexNet (Hybrid)"
     },
     'zh': {
         'app_title': "👕 T恤属性分类器",
@@ -628,10 +628,13 @@ if 'imagen_clahe' not in st.session_state:
 # ======================
 MODEL_PATHS = {
     'MobileNet': 'model/mobilenet_final.keras',
-    'MobileNet-AlexNet': 'model/mobilenet_alexnet.keras'
+    'MobileNetV2+AlexNet': 'model/mobilenet_alexnet.keras'
 }
 ATTRIBUTES = ['gender', 'usage']
-IMG_SIZE = (224, 224)
+IMG_SIZES = {
+    'MobileNet': (224, 224),
+    'MobileNetV2+AlexNet': (224, 224)  # MobileNetV2 requiere 224x224
+}
 
 # Traducciones para atributos y valores
 TRADUCCION_ATRIBUTOS = {'gender': t('gender', language), 'usage': t('usage', language)}
@@ -651,9 +654,9 @@ TRADUCCION_VALORES = {
 # FUNCIONES AUXILIARES
 # ======================
 @st.cache_resource
-def cargar_modelo(nombre_modelo='MobileNet'):
+def cargar_modelo(model_name='MobileNet'):
     try:
-        modelo = tf.keras.models.load_model(MODEL_PATHS[nombre_modelo])
+        modelo = tf.keras.models.load_model(MODEL_PATHS[model_name])
         return modelo
     except Exception as e:
         st.error(t('model_error', language, e=str(e)))
@@ -681,73 +684,68 @@ def aplicar_clahe(imagen):
     
     return final
 
-def predecir_atributos_camiseta(archivo_subido, modelo, codificadores):
+def predecir_atributos_camiseta(archivo_subido, modelo, codificadores, model_name='MobileNet'):
     try:
         img = Image.open(archivo_subido)
-        img = img.resize(IMG_SIZE)
+        img_size = IMG_SIZES[model_name]
+        img = img.resize(img_size)
         
         # Convertir a array y aplicar CLAHE
         img_array = np.array(img)
         img_clahe = aplicar_clahe(img_array)
         
-        # Preprocesar para el modelo (normalizar)
-        img_for_model = img_clahe / 255.0
+        # Preprocesar para el modelo según el tipo
+        if 'MobileNet' in model_name:
+            img_for_model = tf.keras.applications.mobilenet_v2.preprocess_input(img_clahe)
+        else:
+            img_for_model = img_clahe / 255.0
+            
         img_for_model = np.expand_dims(img_for_model, axis=0)
 
         predicciones = modelo.predict(img_for_model, verbose=0)
 
         resultados = {}
-        # Determinar tipo de modelo
-        if isinstance(predicciones, list):  # Modelo híbrido
-            # Género
-            prob_gender = float(predicciones[0][0][0])  # Probabilidad de "Men"
+        
+        # Manejar diferentes formatos de salida según el modelo
+        if 'MobileNetV2+' in model_name:
+            # Modelo híbrido devuelve una lista con dos salidas
+            gender_pred = predicciones[0][0][0]
+            usage_pred = predicciones[1][0][0]
+            
+            # Invertir la predicción de género para el modelo híbrido
+            gender_class = 1 if gender_pred > 0.5 else 0
+            usage_class = 1 if usage_pred > 0.5 else 0
+            
             resultados['gender'] = {
-                'label': 'Men' if prob_gender > 0.5 else 'Women',
-                'confidence': max(prob_gender, 1 - prob_gender),
+                'label': codificadores['gender'].inverse_transform([gender_class])[0],
+                'confidence': float(abs(gender_pred - 0.5) + 0.5),  # Convertir a escala 0-1
                 'probabilities': {
-                    'Men': prob_gender,
-                    'Women': 1 - prob_gender
+                    'Men': 1 - float(gender_pred),
+                    'Women': float(gender_pred)
                 }
             }
-            
-            # Uso
-            prob_usage = float(predicciones[1][0][0])  # Probabilidad de "Sports"
+             
             resultados['usage'] = {
-                'label': 'Sports' if prob_usage > 0.5 else 'Casual',
-                'confidence': max(prob_usage, 1 - prob_usage),
+                'label': codificadores['usage'].inverse_transform([usage_class])[0],
+                'confidence': float(abs(usage_pred - 0.5) + 0.5),  # Convertir a escala 0-1
                 'probabilities': {
-                    'Sports': prob_usage,
-                    'Casual': 1 - prob_usage
+                    'Casual': 1 - float(usage_pred),
+                    'Sports': float(usage_pred)
                 }
             }
-            
-        else:  # Modelo MobileNet estándar
-            # Lógica original para modelo multiclase
-            pred_gender = predicciones[:, :2]
-            pred_usage = predicciones[:, 2:]
-            
-            clase_gender = np.argmax(pred_gender)
-            etiqueta_gender = codificadores['gender'].inverse_transform([clase_gender])[0]
-            resultados['gender'] = {
-                'label': etiqueta_gender,
-                'confidence': float(np.max(pred_gender)),
-                'probabilities': {
-                    cls: float(prob) for cls, prob in 
-                    zip(codificadores['gender'].classes_, pred_gender[0])
+        else:
+            # Modelo estándar (MobileNet)
+            for i, attr in enumerate(ATTRIBUTES):
+                clase_predicha = np.argmax(predicciones[i])
+                etiqueta_predicha = codificadores[attr].inverse_transform([clase_predicha])[0]
+                confianza = np.max(predicciones[i])
+                resultados[attr] = {
+                    'label': etiqueta_predicha, 
+                    'confidence': float(confianza),
+                    'probabilities': {cls: float(prob) for cls, prob in 
+                                    zip(codificadores[attr].classes_, predicciones[i][0])}
                 }
-            }
-            
-            clase_usage = np.argmax(pred_usage)
-            etiqueta_usage = codificadores['usage'].inverse_transform([clase_usage])[0]
-            resultados['usage'] = {
-                'label': etiqueta_usage,
-                'confidence': float(np.max(pred_usage)),
-                'probabilities': {
-                    cls: float(prob) for cls, prob in 
-                    zip(codificadores['usage'].classes_, pred_usage[0])
-                }
-            }
-        # Devolver ambas imágenes (original y CLAHE)
+        
         return resultados, img, Image.fromarray(img_clahe)
 
     except Exception as e:
@@ -768,8 +766,10 @@ def obtener_metricas_modelo(modelo, atributo):
         return metricas_modelos['models'][modelo][atributo]
     return None
 
-def generar_reporte_prediccion(prediccion, img, img_clahe, nombre_modelo="MobileNet"): 
+def generar_reporte_prediccion(prediccion, img, img_clahe, model_name="MobileNet"):
     """Genera un PDF con el reporte de predicción y evaluación de modelos"""
+    # Obtener nombre traducido del modelo
+    nombre_modelo_traducido = t(model_name, language)
     # Crear PDF
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -780,11 +780,11 @@ def generar_reporte_prediccion(prediccion, img, img_clahe, nombre_modelo="Mobile
     pdf.cell(0, 10, pdf_t('report_title', language), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
     pdf.ln(5)
     
-    # Información general
+    # Información general (usar nombre_modelo_traducido)
     pdf.set_font("Helvetica", '', 12)
     pdf.cell(0, 10, pdf_t('analysis_date', language, date=datetime.now().strftime('%d/%m/%Y %H:%M:%S')), 
              new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.cell(0, 10, pdf_t('model_used', language, model=nombre_modelo), 
+    pdf.cell(0, 10, pdf_t('model_used', language, model=nombre_modelo_traducido), 
              new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(10)
     
@@ -1123,28 +1123,22 @@ st.markdown(t('app_description', language))
 st.markdown(f"- **{t('gender', language)}**: {t('men', language)} / {t('women', language)}")
 st.markdown(f"- **{t('usage', language)}**: {t('casual', language)} / {t('sports', language)}")
 
+# Selección de modelo
+model_name = st.selectbox(
+    t('model_selection', language),
+    options=list(MODEL_PATHS.keys()),
+    format_func=lambda x: t(x, language),  # Esto traducirá las opciones
+    index=0,
+    key="model_selector"
+)
+
+# Cargar el modelo seleccionado
+modelo = cargar_modelo(model_name)
+
 # Widget para subir archivo
 archivo_subido = st.file_uploader(t('upload_label', language), 
                                 type=['jpg', 'jpeg', 'png'],
                                 key="subidor_archivos")
-
-# Selector de modelo internacionalizado
-model_options = {
-    'MobileNet': t('MobileNet', language),
-    'MobileNet-AlexNet': t('MobileNet-AlexNet', language)
-}
-
-modelo_seleccionado = st.selectbox(
-    t('model_selection', language),
-    options=list(MODEL_PATHS.keys()),
-    format_func=lambda x: model_options[x],
-    index=0
-)
-
-# Cargar el modelo seleccionado
-modelo = cargar_modelo(modelo_seleccionado)
-codificadores = obtener_codificadores_etiquetas()
-
 # Actualizar session_state
 if archivo_subido is not None:
     st.session_state.archivo_subido = archivo_subido
@@ -1161,7 +1155,7 @@ if st.session_state.archivo_subido is not None:
     if st.button(t('analyze_button', language)):
         with st.spinner(t('analyzing', language)):
             st.session_state.prediccion, st.session_state.imagen, st.session_state.imagen_clahe = predecir_atributos_camiseta(
-                st.session_state.archivo_subido, modelo, codificadores)
+                st.session_state.archivo_subido, modelo, codificadores, model_name)
             
         if st.session_state.prediccion:
             st.success(t('analysis_complete', language))
@@ -1202,7 +1196,7 @@ if st.session_state.prediccion and st.session_state.imagen and st.session_state.
                     st.session_state.prediccion, 
                     st.session_state.imagen,
                     st.session_state.imagen_clahe, 
-                    nombre_modelo=modelo_seleccionado  # Pasa el nombre del modelo seleccionado
+                    model_name=model_name  # Pasar el nombre del modelo seleccionado
                 )
                 
                 st.success(t('report_success', language))

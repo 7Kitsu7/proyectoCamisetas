@@ -3,7 +3,6 @@
 /__pycache__
 /mapa.py
 /roc.py
-/model
 /limpiar.py
 /hibrido.py
 /resnet.py

@@ -54,7 +54,10 @@ Suba una imagen clara de una camiseta para obtener el análisis.
         'casual': "Casual",
         'sports': "Deportivo",
         'processing_error': "❌ Error al procesar la imagen: {error}",
-        'model_error': "Error al cargar el modelo: {error}"
+        'model_error': "Error al cargar el modelo: {error}",
+        'model_selection': "Seleccione el modelo a utilizar:",
+        'MobileNet': "MobileNet",
+        'MobileNet-AlexNet': "MobileNet-AlexNet (Híbrido)"
     },
     'en': {
         'app_title': "👕 T-shirt Attribute Classifier",
@@ -90,7 +93,10 @@ Upload a clear image of a t-shirt to get the analysis.
         'casual': "Casual",
         'sports': "Sports",
         'processing_error': "❌ Error processing image: {error}",
-        'model_error': "Error loading model: {error}"
+        'model_error': "Error loading model: {error}",
+        'model_selection': "Select model to use:",
+        'MobileNet': "MobileNet",
+        'MobileNet-AlexNet': "MobileNet-AlexNet (Hybrid)"
     },
     'fr': {
         'app_title': "👕 Classificateur d'Attributs de T-shirts",
@@ -126,7 +132,10 @@ Téléchargez une image claire d'un t-shirt pour obtenir l'analyse.
         'casual': "Casual",
         'sports': "Sport",
         'processing_error': "❌ Erreur de traitement de l'image: {error}",
-        'model_error': "Erreur de chargement du modèle: {error}"
+        'model_error': "Erreur de chargement du modèle: {error}",
+        'model_selection': "Sélectionnez le modèle à utiliser:",
+        'MobileNet': "MobileNet",
+        'MobileNet-AlexNet': "MobileNet-AlexNet (Hybride)"
     },
     'de': {
         'app_title': "👕 T-Shirt Attribut-Klassifikator",
@@ -162,7 +171,10 @@ Laden Sie ein klares Bild eines T-Shirts hoch, um die Analyse zu erhalten.
         'casual': "Casual",
         'sports': "Sport",
         'processing_error': "❌ Fehler bei der Bildverarbeitung: {error}",
-        'model_error': "Fehler beim Laden des Modells: {error}"
+        'model_error': "Fehler beim Laden des Modells: {error}",
+        'model_selection': "Modell auswählen:",
+        'MobileNet': "MobileNet",
+        'MobileNet-AlexNet': "MobileNet-AlexNet (Hybrid)"
     },
     'zh': {
         'app_title': "👕 T恤属性分类器",
@@ -614,7 +626,10 @@ if 'imagen_clahe' not in st.session_state:
 # ======================
 # CONFIGURACIÓN INICIAL
 # ======================
-MODEL_PATH = 'model/mobilenet_final.keras'
+MODEL_PATHS = {
+    'MobileNet': 'model/mobilenet_final.keras',
+    'MobileNet-AlexNet': 'model/mobilenet_alexnet.keras'
+}
 ATTRIBUTES = ['gender', 'usage']
 IMG_SIZE = (224, 224)
 
@@ -636,9 +651,9 @@ TRADUCCION_VALORES = {
 # FUNCIONES AUXILIARES
 # ======================
 @st.cache_resource
-def cargar_modelo():
+def cargar_modelo(nombre_modelo='MobileNet'):
     try:
-        modelo = tf.keras.models.load_model(MODEL_PATH)
+        modelo = tf.keras.models.load_model(MODEL_PATHS[nombre_modelo])
         return modelo
     except Exception as e:
         st.error(t('model_error', language, e=str(e)))
@@ -682,17 +697,56 @@ def predecir_atributos_camiseta(archivo_subido, modelo, codificadores):
         predicciones = modelo.predict(img_for_model, verbose=0)
 
         resultados = {}
-        for i, attr in enumerate(ATTRIBUTES):
-            clase_predicha = np.argmax(predicciones[i])
-            etiqueta_predicha = codificadores[attr].inverse_transform([clase_predicha])[0]
-            confianza = np.max(predicciones[i])
-            resultados[attr] = {
-                'label': etiqueta_predicha, 
-                'confidence': float(confianza),
-                'probabilities': {cls: float(prob) for cls, prob in 
-                                zip(codificadores[attr].classes_, predicciones[i][0])}
+        # Determinar tipo de modelo
+        if isinstance(predicciones, list):  # Modelo híbrido
+            # Género
+            prob_gender = float(predicciones[0][0][0])  # Probabilidad de "Men"
+            resultados['gender'] = {
+                'label': 'Men' if prob_gender > 0.5 else 'Women',
+                'confidence': max(prob_gender, 1 - prob_gender),
+                'probabilities': {
+                    'Men': prob_gender,
+                    'Women': 1 - prob_gender
+                }
             }
-        
+            
+            # Uso
+            prob_usage = float(predicciones[1][0][0])  # Probabilidad de "Sports"
+            resultados['usage'] = {
+                'label': 'Sports' if prob_usage > 0.5 else 'Casual',
+                'confidence': max(prob_usage, 1 - prob_usage),
+                'probabilities': {
+                    'Sports': prob_usage,
+                    'Casual': 1 - prob_usage
+                }
+            }
+            
+        else:  # Modelo MobileNet estándar
+            # Lógica original para modelo multiclase
+            pred_gender = predicciones[:, :2]
+            pred_usage = predicciones[:, 2:]
+            
+            clase_gender = np.argmax(pred_gender)
+            etiqueta_gender = codificadores['gender'].inverse_transform([clase_gender])[0]
+            resultados['gender'] = {
+                'label': etiqueta_gender,
+                'confidence': float(np.max(pred_gender)),
+                'probabilities': {
+                    cls: float(prob) for cls, prob in 
+                    zip(codificadores['gender'].classes_, pred_gender[0])
+                }
+            }
+            
+            clase_usage = np.argmax(pred_usage)
+            etiqueta_usage = codificadores['usage'].inverse_transform([clase_usage])[0]
+            resultados['usage'] = {
+                'label': etiqueta_usage,
+                'confidence': float(np.max(pred_usage)),
+                'probabilities': {
+                    cls: float(prob) for cls, prob in 
+                    zip(codificadores['usage'].classes_, pred_usage[0])
+                }
+            }
         # Devolver ambas imágenes (original y CLAHE)
         return resultados, img, Image.fromarray(img_clahe)
 
@@ -1050,7 +1104,7 @@ def generar_reporte_prediccion(prediccion, img, img_clahe, nombre_modelo="Mobile
     
     # Limpiar archivos temporales
     try:
-        os.unlink(temp_img.name)
+        os.unlink(temp_img_clahe.name)
     except:
         pass
     
@@ -1073,6 +1127,23 @@ st.markdown(f"- **{t('usage', language)}**: {t('casual', language)} / {t('sports
 archivo_subido = st.file_uploader(t('upload_label', language), 
                                 type=['jpg', 'jpeg', 'png'],
                                 key="subidor_archivos")
+
+# Selector de modelo internacionalizado
+model_options = {
+    'MobileNet': t('MobileNet', language),
+    'MobileNet-AlexNet': t('MobileNet-AlexNet', language)
+}
+
+modelo_seleccionado = st.selectbox(
+    t('model_selection', language),
+    options=list(MODEL_PATHS.keys()),
+    format_func=lambda x: model_options[x],
+    index=0
+)
+
+# Cargar el modelo seleccionado
+modelo = cargar_modelo(modelo_seleccionado)
+codificadores = obtener_codificadores_etiquetas()
 
 # Actualizar session_state
 if archivo_subido is not None:
@@ -1131,7 +1202,7 @@ if st.session_state.prediccion and st.session_state.imagen and st.session_state.
                     st.session_state.prediccion, 
                     st.session_state.imagen,
                     st.session_state.imagen_clahe, 
-                    nombre_modelo="MobileNet"
+                    nombre_modelo=modelo_seleccionado  # Pasa el nombre del modelo seleccionado
                 )
                 
                 st.success(t('report_success', language))

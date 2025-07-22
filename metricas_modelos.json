@@ -162,7 +162,7 @@
                 }
             }
         },
-        "MobileNetV2 y AlexNet": {
+        "MobileNetV2+AlexNet": {
             "gender": {
                 "accuracy": 0.977970102281668,
                 "precision": [
@@ -216,7 +216,7 @@
                 }
             }
         },
-        "MobileNetV2 y ResNet50": {
+        "MobileNetV2+ResNet50": {
             "gender": {
                 "accuracy": 0.96852871754524,
                 "precision": [

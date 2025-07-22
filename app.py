@@ -11,7 +11,7 @@ from datetime import datetime
 import tempfile
 import json
 from fpdf.enums import XPos, YPos
-
+import cv2
 # Configuración de la página
 st.set_page_config(page_title="Clasificador de Camisetas", page_icon="👕", layout="wide")
 
@@ -249,7 +249,15 @@ PDF_TRANSLATIONS = {
         'roc_gender': "Curva ROC Género",
         'roc_usage': "Curva ROC Uso",
         'heatmap_gender': "Mapa de calor Género",
-        'heatmap_usage': "Mapa de calor Uso"
+        'heatmap_usage': "Mapa de calor Uso",
+        'best_model': "El mejor modelo según el MCC promedio es {model} con:",
+        'avg_mcc': "- MCC promedio: {value:.4f}",
+        'gender_mcc': "- MCC para Género: {value:.4f}",
+        'usage_mcc': "- MCC para Uso: {value:.4f}",
+        'outperforms': "Supera al segundo mejor modelo ({model}) por {value:.4f} puntos en MCC promedio.",
+        'significant_diff': "Diferencias estadísticamente significativas encontradas:",
+        'confirmation': "Esto confirma que el mejor modelo tiene un rendimiento significativamente diferente a los modelos comparados.",
+        'no_diff_best': "No se encontraron diferencias estadísticamente significativas con otros modelos principales."
     },
     'en': {
         'report_title': "T-shirt Analysis Report",
@@ -296,7 +304,15 @@ PDF_TRANSLATIONS = {
         'roc_gender': "ROC Curve Gender",
         'roc_usage': "ROC Curve Usage",
         'heatmap_gender': "Heatmap Gender",
-        'heatmap_usage': "Heatmap Usage"
+        'heatmap_usage': "Heatmap Usage",
+        'best_model': "The best model based on average MCC is {model} with:",
+        'avg_mcc': "- Average MCC: {value:.4f}",
+        'gender_mcc': "- Gender MCC: {value:.4f}",
+        'usage_mcc': "- Usage MCC: {value:.4f}",
+        'outperforms': "Outperforms the second best model ({model}) by {value:.4f} points in average MCC.",
+        'significant_diff': "Statistically significant differences found:",
+        'confirmation': "This confirms that the best model performs significantly different from the compared models.",
+        'no_diff_best': "No statistically significant differences found with other main models."
     },
     'fr': {
         'report_title': "Rapport d'Analyse de T-shirt",
@@ -343,7 +359,15 @@ PDF_TRANSLATIONS = {
         'roc_gender': "Courbe ROC Genre",
         'roc_usage': "Courbe ROC Utilisation",
         'heatmap_gender': "Carte thermique Genre",
-        'heatmap_usage': "Carte thermique Utilisation"
+        'heatmap_usage': "Carte thermique Utilisation",
+        'best_model': "Le meilleur modèle selon le MCC moyen est {model} avec :",
+        'avg_mcc': "- MCC moyen : {value:.4f}",
+        'gender_mcc': "- MCC Genre : {value:.4f}",
+        'usage_mcc': "- MCC Utilisation : {value:.4f}",
+        'outperforms': "Surpasse le deuxième meilleur modèle ({model}) de {value:.4f} points en MCC moyen.",
+        'significant_diff': "Différences statistiquement significatives trouvées :",
+        'confirmation': "Cela confirme que le meilleur modèle a une performance significativement différente des modèles comparés.",
+        'no_diff_best': "Aucune différence statistiquement significative trouvée avec les autres modèles principaux."
     },
     'de': {
         'report_title': "T-Shirt-Analysebericht",
@@ -390,7 +414,15 @@ PDF_TRANSLATIONS = {
         'roc_gender': "ROC-Kurve Geschlecht",
         'roc_usage': "ROC-Kurve Verwendung",
         'heatmap_gender': "Heatmap Geschlecht",
-        'heatmap_usage': "Heatmap Verwendung"
+        'heatmap_usage': "Heatmap Verwendung",
+        'best_model': "Das beste Modell nach durchschnittlichem MCC ist {model} mit:",
+        'avg_mcc': "- Durchschnittlicher MCC: {value:.4f}",
+        'gender_mcc': "- MCC Geschlecht: {value:.4f}",
+        'usage_mcc': "- MCC Verwendung: {value:.4f}",
+        'outperforms': "Übertrifft das zweitbeste Modell ({model}) um {value:.4f} Punkte im durchschnittlichen MCC.",
+        'significant_diff': "Statistisch signifikante Unterschiede gefunden:",
+        'confirmation': "Dies bestätigt, dass das beste Modell eine signifikant andere Leistung als die Vergleichsmodelle hat.",
+        'no_diff_best': "Keine statistisch signifikanten Unterschiede zu anderen Hauptmodellen gefunden."
     },
     'zh': {
         'report_title': "T恤分析报告",
@@ -576,7 +608,9 @@ if 'imagen' not in st.session_state:
     st.session_state.imagen = None
 if 'archivo_subido' not in st.session_state:
     st.session_state.archivo_subido = None
-
+# AÑADE ESTO JUSTO DEBAJO:
+if 'imagen_clahe' not in st.session_state:
+    st.session_state.imagen_clahe = None
 # ======================
 # CONFIGURACIÓN INICIAL
 # ======================
@@ -616,15 +650,36 @@ def obtener_codificadores_etiquetas():
         'gender': LabelEncoder().fit(['Men', 'Women']),
         'usage': LabelEncoder().fit(['Casual', 'Sports'])
     }
+def aplicar_clahe(imagen):
+    """Aplica normalización CLAHE a una imagen"""
+    # Convertir a LAB color space
+    lab = cv2.cvtColor(imagen, cv2.COLOR_RGB2LAB)
+    l, a, b = cv2.split(lab)
+    
+    # Aplicar CLAHE al canal L (luminancia)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    cl = clahe.apply(l)
+    
+    # Fusionar canales y convertir de vuelta a RGB
+    limg = cv2.merge((cl, a, b))
+    final = cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
+    
+    return final
 
 def predecir_atributos_camiseta(archivo_subido, modelo, codificadores):
     try:
         img = Image.open(archivo_subido)
         img = img.resize(IMG_SIZE)
-        img_array = img_to_array(img) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
+        
+        # Convertir a array y aplicar CLAHE
+        img_array = np.array(img)
+        img_clahe = aplicar_clahe(img_array)
+        
+        # Preprocesar para el modelo (normalizar)
+        img_for_model = img_clahe / 255.0
+        img_for_model = np.expand_dims(img_for_model, axis=0)
 
-        predicciones = modelo.predict(img_array, verbose=0)
+        predicciones = modelo.predict(img_for_model, verbose=0)
 
         resultados = {}
         for i, attr in enumerate(ATTRIBUTES):
@@ -638,11 +693,12 @@ def predecir_atributos_camiseta(archivo_subido, modelo, codificadores):
                                 zip(codificadores[attr].classes_, predicciones[i][0])}
             }
         
-        return resultados, img
+        # Devolver ambas imágenes (original y CLAHE)
+        return resultados, img, Image.fromarray(img_clahe)
 
     except Exception as e:
         st.error(t('processing_error', language, e=str(e)))
-        return None, None
+        return None, None, None
 
 def generar_enlace_descarga_pdf(ruta_archivo, texto_boton, language):
     with open(ruta_archivo, "rb") as f:
@@ -658,7 +714,7 @@ def obtener_metricas_modelo(modelo, atributo):
         return metricas_modelos['models'][modelo][atributo]
     return None
 
-def generar_reporte_prediccion(prediccion, img, nombre_modelo="MobileNet"):
+def generar_reporte_prediccion(prediccion, img, img_clahe, nombre_modelo="MobileNet"): 
     """Genera un PDF con el reporte de predicción y evaluación de modelos"""
     # Crear PDF
     pdf = FPDF()
@@ -679,13 +735,13 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="MobileNet"):
     pdf.ln(10)
     
     # Guardar imagen temporalmente
-    temp_img = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
-    img.save(temp_img.name, format='JPEG', quality=90)
-    
+    temp_img_clahe = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
+    img_clahe.save(temp_img_clahe.name, format='JPEG', quality=90)
+
     # Agregar imagen al PDF
     pdf.set_font("Helvetica", 'B', 14)
     pdf.cell(0, 10, pdf_t('analyzed_image', language), 0, 1)
-    pdf.image(temp_img.name, x=10, w=180)
+    pdf.image(temp_img_clahe.name, x=10, w=140)
     pdf.ln(15)
 
     # Resultados principales
@@ -915,53 +971,74 @@ def generar_reporte_prediccion(prediccion, img, nombre_modelo="MobileNet"):
     
     pdf.set_font("Helvetica", 'B', 14)
     pdf.cell(0, 10, pdf_t('heatmap_gender', language), 0, 1)
-    pdf.image(f"mapa/mapa_rho_genero.png", x=10, w=120)
+    pdf.image(f"mapa/mapa_rho_genero.png", x=10, w=150)
     pdf.ln(10)
 
     pdf.set_font("Helvetica", 'B', 14)
     pdf.cell(0, 10, pdf_t('heatmap_usage', language), 0, 1)
-    pdf.image(f"mapa/mapa_rho_uso.png", x=10, w=120)
-    pdf.ln(10)
+    pdf.image(f"mapa/mapa_rho_uso.png", x=10, w=150)
+    pdf.ln(15)
 
 
-    diferencias = []  # guardamos diferencias significativas
-
-    for comparacion, resultados in metricas_modelos['mcnemar'].items():
-        modelo1, modelo2 = comparacion.split('_vs_')
-        
-        pdf.set_font("Helvetica", 'B', 11)
-        pdf.cell(0, 8, pdf_t('comparison', language, model1=modelo1, model2=modelo2), 0, 1)
-        pdf.ln(2)
-        
-        # Género
-        chi2_gen = resultados['gender']['chi2']
-        p_gen = resultados['gender']['pvalue']
-        sig_gen = pdf_t('significant', language) if p_gen < 0.05 else pdf_t('not_significant', language)
-        if p_gen < 0.05:
-            diferencias.append(f"{modelo1} vs {modelo2} ({pdf_t('gender', language)})")
-
-        pdf.set_font("Helvetica", '', 10)
-        pdf.cell(0, 8, f"  - {pdf_t('gender', language)}: Chi2 = {chi2_gen:.4f}, p = {p_gen:.4f} {sig_gen}", 0, 1)
-        
-        # Uso
-        chi2_uso = resultados['usage']['chi2']
-        p_uso = resultados['usage']['pvalue']
-        sig_uso = pdf_t('significant', language) if p_uso < 0.05 else pdf_t('not_significant', language)
-        if p_uso < 0.05:
-            diferencias.append(f"{modelo1} vs {modelo2} ({pdf_t('usage', language)})")
-
-        pdf.cell(0, 8, f"  - {pdf_t('usage', language)}: Chi2 = {chi2_uso:.4f}, p = {p_uso:.4f} {sig_uso}", 0, 1)
-        pdf.ln(5)
-
-    # Interpretación final
+    # --------------------------
+    # CONCLUSIÓN MEJORADA
+    # --------------------------
     pdf.set_font("Helvetica", 'B', 12)
     pdf.cell(0, 10, pdf_t('conclusion', language), 0, 1)
     pdf.set_font("Helvetica", '', 10)
-    if diferencias:
-        pdf.multi_cell(0, 8, pdf_t('significant_differences', language, differences="\n- ".join(diferencias)))
-    else:
-        pdf.multi_cell(0, 8, pdf_t('no_differences', language))
 
+    # Determinar el mejor modelo basado en el MCC promedio
+    modelos_mcc = []
+    for modelo, datos in metricas_modelos['models'].items():
+        mcc_gender = datos['gender']['mcc']
+        mcc_usage = datos['usage']['mcc']
+        mcc_promedio = (mcc_gender + mcc_usage) / 2
+        modelos_mcc.append((modelo, mcc_promedio, mcc_gender, mcc_usage))
+
+    # Ordenar modelos por MCC promedio
+    modelos_mcc.sort(key=lambda x: x[1], reverse=True)
+    mejor_modelo = modelos_mcc[0][0]
+    mcc_promedio_mejor = modelos_mcc[0][1]
+    mcc_gender_mejor = modelos_mcc[0][2]
+    mcc_usage_mejor = modelos_mcc[0][3]
+
+    # Texto de conclusión
+    conclusion_text = pdf_t('best_model', language, model=mejor_modelo) + "\n"
+    conclusion_text += pdf_t('avg_mcc', language, value=mcc_promedio_mejor) + "\n"
+    conclusion_text += pdf_t('gender_mcc', language, value=mcc_gender_mejor) + "\n"
+    conclusion_text += pdf_t('usage_mcc', language, value=mcc_usage_mejor) + "\n\n"
+
+    # Comparación con otros modelos
+    if len(modelos_mcc) > 1:
+        segundo_mejor = modelos_mcc[1][0]
+        diferencia = mcc_promedio_mejor - modelos_mcc[1][1]
+        conclusion_text += pdf_t('outperforms', language, model=segundo_mejor, value=diferencia) + "\n\n"
+
+    # Diferencias significativas
+    diferencias_significativas = []
+    for comparacion, resultados in metricas_modelos['mcnemar'].items():
+        if resultados['gender']['pvalue'] < 0.05 and mejor_modelo in comparacion:
+            modelo1, modelo2 = comparacion.split('_vs_')
+            if modelo1 == mejor_modelo or modelo2 == mejor_modelo:
+                otro_modelo = modelo2 if modelo1 == mejor_modelo else modelo1
+                diferencias_significativas.append(f"{mejor_modelo} vs {otro_modelo} ({pdf_t('gender', language)})")
+
+        if resultados['usage']['pvalue'] < 0.05 and mejor_modelo in comparacion:
+            modelo1, modelo2 = comparacion.split('_vs_')
+            if modelo1 == mejor_modelo or modelo2 == mejor_modelo:
+                otro_modelo = modelo2 if modelo1 == mejor_modelo else modelo1
+                diferencias_significativas.append(f"{mejor_modelo} vs {otro_modelo} ({pdf_t('usage', language)})")
+
+    if diferencias_significativas:
+        conclusion_text += pdf_t('significant_diff', language) + "\n"
+        for diff in diferencias_significativas:
+            conclusion_text += f"- {diff}\n"
+        conclusion_text += "\n" + pdf_t('confirmation', language)
+    else:
+        conclusion_text += pdf_t('no_diff_best', language)
+
+    pdf.multi_cell(0, 8, conclusion_text)
+    
     # Pie de página
     pdf.ln(10)
     pdf.set_font("Helvetica", 'I', 10)
@@ -1012,20 +1089,20 @@ if st.session_state.archivo_subido is not None:
     # Botón para realizar predicción
     if st.button(t('analyze_button', language)):
         with st.spinner(t('analyzing', language)):
-            st.session_state.prediccion, st.session_state.imagen = predecir_atributos_camiseta(
+            st.session_state.prediccion, st.session_state.imagen, st.session_state.imagen_clahe = predecir_atributos_camiseta(
                 st.session_state.archivo_subido, modelo, codificadores)
             
         if st.session_state.prediccion:
             st.success(t('analysis_complete', language))
 
 # Mostrar resultados si existen
-if st.session_state.prediccion and st.session_state.imagen:
+if st.session_state.prediccion and st.session_state.imagen and st.session_state.imagen_clahe:
     # Mostrar resultados en columnas
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader(t('analyzed_image', language))
-        st.image(st.session_state.imagen, use_container_width=True)
+        st.image(st.session_state.imagen_clahe, use_container_width=True)
     
     with col2:
         st.subheader(t('analysis_results', language))
@@ -1053,6 +1130,7 @@ if st.session_state.prediccion and st.session_state.imagen:
                 pdf_path = generar_reporte_prediccion(
                     st.session_state.prediccion, 
                     st.session_state.imagen,
+                    st.session_state.imagen_clahe, 
                     nombre_modelo="MobileNet"
                 )
                 

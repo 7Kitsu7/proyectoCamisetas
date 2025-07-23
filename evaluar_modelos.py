@@ -10,12 +10,16 @@ from sklearn.metrics import (matthews_corrcoef, confusion_matrix,
                             recall_score, f1_score, accuracy_score)
 from statsmodels.stats.contingency_tables import mcnemar
 from tensorflow.keras.models import load_model
+from sklearn.metrics import roc_curve, auc
+from itertools import cycle
 
 # Configuración
 MODEL_PATHS = {
     'AlexNet': 'model/alexnet_final.keras',
     'MobileNet': 'model/mobilenet_final.keras',
-    'ResNet-50': 'model/resnet_final.keras'
+    'ResNet-50': 'model/resnet_final.keras',
+    'MobileNetV2+AlexNet': 'saved_models/hybrid_alexnet.keras',
+    'MobileNetV2+ResNet50': 'saved_models/hybrid_resnet50.keras'
 }
 CSV_PATH = 'styles.csv'
 IMAGE_DIR = 'images'
@@ -26,6 +30,50 @@ RANDOM_STATE = 42
 # Nombres en español para las categorías
 CATEGORIAS_GENERO = ['Hombre', 'Mujer']
 CATEGORIAS_USO = ['Casual', 'Deportivo']
+
+def plot_roc_curves(resultados, target='gender'):
+    """Genera y guarda curvas ROC comparativas para todos los modelos"""
+    plt.figure(figsize=(10, 8))
+    
+    # Configuración según target
+    if target == 'gender':
+        title = "Curvas ROC - Clasificación por Género"
+        categories = CATEGORIAS_GENERO
+        # Ajustar etiquetas para modelos híbridos
+        for model_name in resultados:
+            if 'MobileNetV2+' in model_name:
+                # Invertir las etiquetas para híbridos
+                for i in range(len(resultados[model_name][target]['true'])):
+                    resultados[model_name][target]['true'][i] = 1 - resultados[model_name][target]['true'][i]
+                    resultados[model_name][target]['pred'][i] = 1 - resultados[model_name][target]['pred'][i]
+    else:
+        title = "Curvas ROC - Clasificación por Uso"
+        categories = CATEGORIAS_USO
+    
+    colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'green', 'red'])
+    
+    for model_name, color in zip(resultados.keys(), colors):
+        y_true = np.array(resultados[model_name][target]['true'])
+        y_pred = np.array(resultados[model_name][target]['pred'])
+        
+        fpr, tpr, _ = roc_curve(y_true, y_pred)
+        roc_auc = auc(fpr, tpr)
+        
+        plt.plot(fpr, tpr, color=color, lw=2,
+                 label=f'{model_name} (AUC = {roc_auc:.2f})')
+    
+    plt.plot([0, 1], [0, 1], 'k--', lw=2)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('Tasa de Falsos Positivos')
+    plt.ylabel('Tasa de Verdaderos Positivos')
+    plt.title(title)
+    plt.legend(loc="lower right")
+    
+    filename = f"roc_curve_{target}.png"
+    plt.savefig(filename, bbox_inches='tight', dpi=300)
+    plt.close()
+    print(f"Curva ROC para {target} guardada en {filename}")
 
 def load_and_prepare_data():
     """Carga y prepara los datos"""
@@ -72,20 +120,40 @@ def evaluate_model(model, test_df, img_size, model_name):
     gender_pred, usage_pred = [], []
     
     for _, row in test_df.iterrows():
+        # Definir tamaño de imagen específico para cada modelo
+        if 'MobileNetV2+AlexNet' in model_name:
+            current_img_size = (224, 224)  # MobileNetV2 requiere 224x224
+        elif 'AlexNet' in model_name:
+            current_img_size = (227, 227)  # AlexNet original requiere 227x227
+        else:
+            current_img_size = (224, 224)  # Otros modelos (MobileNet, ResNet, etc.)
+        
         img = preprocess_image(
             os.path.join(IMAGE_DIR, row['image_path']),
-            img_size,
+            current_img_size,
             model_name
         )
         preds = model.predict(np.array([img]), verbose=0)
         
-        gender_true.append(row['gender_encoded'])
+        # Aplicar codificación invertida solo para modelos híbridos
+        if 'MobileNetV2+' in model_name:
+            gender_true.append(1 - row['gender_encoded'])  # Invertir para híbridos
+        else:
+            gender_true.append(row['gender_encoded'])  # Mantener original para otros
+            
         usage_true.append(row['usage_encoded'])
         
-        if isinstance(preds, list):
+        # Manejo diferente para modelos híbridos
+        if 'MobileNetV2+' in model_name:
+            # Modelos híbridos devuelven una lista con dos salidas
+            gender_pred.append(1 if preds[0][0][0] > 0.5 else 0)
+            usage_pred.append(1 if preds[1][0][0] > 0.5 else 0)
+        elif isinstance(preds, list):
+            # Modelos multi-salida estándar
             gender_pred.append(np.argmax(preds[0]))
             usage_pred.append(np.argmax(preds[1]))
         else:
+            # Modelos con salidas nombradas
             gender_pred.append(np.argmax(preds['gender']))
             usage_pred.append(np.argmax(preds['usage']))
     
@@ -96,8 +164,16 @@ def evaluate_model(model, test_df, img_size, model_name):
 
 def save_combined_confusion_matrices(model_name, gender_data, usage_data):
     """Guarda ambas matrices de confusión en una sola imagen con barras de color"""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))  # Aumenté el ancho para acomodar las colorbars
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
     fig.suptitle(f'Matrices de Confusión - {model_name}', fontsize=16, y=1.02)
+    
+    # Determinar el orden de las etiquetas según el tipo de modelo
+    if 'MobileNetV2+' in model_name:
+        gender_labels = ['Mujer', 'Hombre']  # Women:0, Men:1 para híbridos
+    else:
+        gender_labels = ['Hombre', 'Mujer']  # Men:0, Women:1 para otros modelos
+    
+    usage_labels = ['Casual', 'Deportivo']  # Uso se mantiene igual para todos
     
     # Matriz de género
     cm_gender = confusion_matrix(gender_data['true'], gender_data['pred'])
@@ -105,16 +181,14 @@ def save_combined_confusion_matrices(model_name, gender_data, usage_data):
     ax1.set_title('Clasificación por Género', fontsize=14)
     ax1.set_xticks([0, 1])
     ax1.set_yticks([0, 1])
-    ax1.set_xticklabels(CATEGORIAS_GENERO)
-    ax1.set_yticklabels(CATEGORIAS_GENERO)
+    ax1.set_xticklabels(gender_labels)
+    ax1.set_yticklabels(gender_labels)
     ax1.set_ylabel('Etiqueta verdadera')
     ax1.set_xlabel('Etiqueta predicha')
     
-    # Añadir barra de color para género
     cbar1 = fig.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
     cbar1.set_label('Cantidad', rotation=270, labelpad=15)
     
-    # Añadir valores en las celdas
     thresh = cm_gender.max() / 2.
     for i in range(cm_gender.shape[0]):
         for j in range(cm_gender.shape[1]):
@@ -122,22 +196,20 @@ def save_combined_confusion_matrices(model_name, gender_data, usage_data):
                     horizontalalignment="center",
                     color="white" if cm_gender[i, j] > thresh else "black")
     
-    # Matriz de uso
+    # Matriz de uso (se mantiene igual para todos los modelos)
     cm_usage = confusion_matrix(usage_data['true'], usage_data['pred'])
     im2 = ax2.imshow(cm_usage, interpolation='nearest', cmap=plt.cm.Blues)
     ax2.set_title('Clasificación por Uso', fontsize=14)
     ax2.set_xticks([0, 1])
     ax2.set_yticks([0, 1])
-    ax2.set_xticklabels(CATEGORIAS_USO)
-    ax2.set_yticklabels(CATEGORIAS_USO)
+    ax2.set_xticklabels(usage_labels)
+    ax2.set_yticklabels(usage_labels)
     ax2.set_ylabel('Etiqueta verdadera')
     ax2.set_xlabel('Etiqueta predicha')
     
-    # Añadir barra de color para uso
     cbar2 = fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)
     cbar2.set_label('Cantidad', rotation=270, labelpad=15)
     
-    # Añadir valores en las celdas
     thresh = cm_usage.max() / 2.
     for i in range(cm_usage.shape[0]):
         for j in range(cm_usage.shape[1]):
@@ -146,8 +218,8 @@ def save_combined_confusion_matrices(model_name, gender_data, usage_data):
                     color="white" if cm_usage[i, j] > thresh else "black")
     
     plt.tight_layout()
-    filename = f"matrices_confusion_{model_name.lower()}.png"
-    plt.savefig(filename, bbox_inches='tight', dpi=300)  # Añadí dpi para mayor calidad
+    filename = f"matrices_confusion_{model_name.lower().replace('+', '_plus_')}.png"
+    plt.savefig(filename, bbox_inches='tight', dpi=300)
     plt.close()
     print(f"Matrices de confusión combinadas guardadas en {filename}")
 
@@ -161,7 +233,6 @@ def calculate_detailed_metrics(y_true, y_pred, categories):
         'mcc': matthews_corrcoef(y_true, y_pred)
     }
     
-    # Métricas por categoría
     for i, cat in enumerate(categories):
         metrics[cat] = {
             'precision': metrics['precision'][i],
@@ -203,7 +274,12 @@ if __name__ == '__main__':
         print(f"\n🚀 Evaluando {name}...")
         try:
             model = load_model(path)
-            img_size = (227, 227) if 'AlexNet' in name else (224, 224)
+            # Definir tamaño de imagen según modelo
+            if 'AlexNet' in name:
+                img_size = (227, 227)
+            else:
+                img_size = (224, 224)
+                
             resultados[name] = evaluate_model(model, test_df, img_size, name)
             
             # Guardar matrices de confusión combinadas
@@ -259,3 +335,7 @@ if __name__ == '__main__':
         json.dump(metricas, f, indent=4, ensure_ascii=False)
     
     print(f"\n✅ Evaluación completada. Resultados guardados en {OUTPUT_JSON}")
+    
+    print("\n📈 Generando curvas ROC comparativas...")
+    plot_roc_curves(resultados, target='gender')
+    plot_roc_curves(resultados, target='usage')
